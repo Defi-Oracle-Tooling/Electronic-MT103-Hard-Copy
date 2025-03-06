@@ -13,15 +13,28 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-
-    - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@master
+        
+    - uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Download SonarQube Scanner
+      run: |
+        mkdir -p $HOME/.sonar
+        wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+        unzip sonar-scanner-cli-4.8.0.2856-linux.zip
+        mv sonar-scanner-4.8.0.2856-linux sonar-scanner
+        
+    - name: SonarQube Analysis
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      with:
-        args: >
-          -Dsonar.projectKey=mt103-system
-          -Dsonar.organization=mt103-org
-          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-          -Dsonar.python.coverage.reportPaths=coverage.xml
+      run: |
+        ./sonar-scanner/bin/sonar-scanner \
+          -Dsonar.projectKey=Defi-Oracle-Tooling_Electronic-MT103-Hard-Copy \
+          -Dsonar.organization=defi-oracle-tooling \
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+          -Dsonar.python.coverage.reportPaths=coverage.xml \
+          -Dsonar.host.url=$SONAR_HOST_URL \
+          -Dsonar.login=$SONAR_TOKEN
