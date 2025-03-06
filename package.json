@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "description": "Electronic MT103 Processing System",
   "scripts": {
-    "test": "jest",
+    "test": "jest --coverage",
     "test:load": "jest tests/performance/",
     "test:security": "jest tests/security/",
+    "test:e2e": "jest tests/e2e/",
+    "audit:security": "npm audit --audit-level=high",
     "lint": "eslint .",
     "format": "prettier --write .",
     "prepare": "husky install"
@@ -20,12 +22,20 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "xss": "^1.0.14",
-    "autocannon": "^7.12.0"
+    "autocannon": "^7.12.0",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.0",
+    "sanitize-html": "^2.11.0",
+    "pino": "^8.17.0",
+    "opentelemetry-sdk": "^1.22.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
     "eslint": "^9.21.0",
     "prettier": "^3.2.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "jest-junit": "^16.0.0",
+    "supertest": "^6.3.3",
+    "artillery": "^2.0.3"
   }
 }

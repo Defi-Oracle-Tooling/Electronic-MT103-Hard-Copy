@@ -1,5 +1,6 @@
 const winston = require('winston');
 const path = require('path');
+const { trace, context, propagation } = require('@opentelemetry/api');
 
 class MT103Logger {
     constructor() {
@@ -25,6 +26,20 @@ class MT103Logger {
                 })
             ]
         });
+
+        this.securityTransport = new winston.transports.File({
+            filename: path.join(__dirname, '../logs/security.log'),
+            level: 'warn',
+            maxsize: 10485760, // 10MB
+            maxFiles: 10,
+            format: winston.format.combine(
+                winston.format.timestamp(),
+                winston.format.json(),
+                winston.format.metadata()
+            )
+        });
+
+        this.logger.add(this.securityTransport);
 
         if (process.env.NODE_ENV !== 'production') {
             this.logger.add(new winston.transports.Console({
@@ -54,12 +69,32 @@ class MT103Logger {
     }
 
     logSecurity(messageId, event, metadata = {}) {
+        const span = trace.getSpan(context.active());
+        const traceId = span?.spanContext().traceId;
+        
         this.logger.warn('Security Event', {
             messageId,
             event,
             timestamp: new Date().toISOString(),
-            ...metadata
+            traceId,
+            severity: this._calculateSeverity(event),
+            ...metadata,
+            fingerprint: this._generateEventFingerprint(event, metadata)
         });
+    }
+
+    _calculateSeverity(event) {
+        const severityMap = {
+            'INVALID_SIGNATURE': 'HIGH',
+            'RATE_LIMIT_EXCEEDED': 'MEDIUM',
+            'VALIDATION_FAILED': 'LOW'
+        };
+        return severityMap[event] || 'INFO';
+    }
+
+    _generateEventFingerprint(event, metadata) {
+        const data = `${event}-${JSON.stringify(metadata)}`;
+        return crypto.createHash('sha256').update(data).digest('hex');
     }
 
     logPerformance(messageId, duration, operation) {
