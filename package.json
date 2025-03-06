@@ -4,15 +4,23 @@
   "description": "Electronic MT103 Processing System",
   "scripts": {
     "test": "jest",
+    "test:load": "jest tests/performance/",
+    "test:security": "jest tests/security/",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky install"
   },
   "dependencies": {
     "crypto": "^1.0.1",
     "redis": "^4.6.7",
     "prometheus-client": "^0.5.0",
     "express": "^4.18.2",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "rate-limit-redis": "^3.0.0",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "xss": "^1.0.14",
+    "autocannon": "^7.12.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
