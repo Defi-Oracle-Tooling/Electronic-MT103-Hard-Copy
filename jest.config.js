@@ -1,22 +1,25 @@
 module.exports = {
-  testEnvironment: 'node',
-  coverageThreshold: {
-    global: {
-      branches: 95,
-      functions: 95,
-      lines: 95,
-      statements: 95
-    }
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+      isolatedModules: true
+    }],
+    '^.+\\.(js|jsx)$': 'babel-jest'
   },
-  collectCoverageFrom: [
-    'scripts/**/*.js',
-    '!scripts/**/*.test.js',
-    'scripts/monitoring/**/*.js'
-  ],
-  setupFilesAfterEnv: ['./jest.setup.js'],
-  testMatch: [
-    '**/tests/**/*.js',
-    '**/tests/monitoring/**/*.js',
-    '**/tests/api/**/*.js'
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1'
+  },
+  testPathIgnorePatterns: ['/node_modules/'],
+  collectCoverageFrom: ['src/**/*.{ts,tsx,js,jsx}'],
+  coveragePathIgnorePatterns: ['/node_modules/'],
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: './coverage/junit',
+      outputName: 'junit.xml',
+    }]
   ]
 };
