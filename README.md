@@ -1,6 +1,6 @@
 # Electronic MT103 Hard Copy System 🏦
 
-[![Build Status](https://github.com/your-username/Electronic-MT103-Hard-Copy/workflows/build/badge.svg)](https://github.com/your-username/Electronic-MT103-Hard-Copy/actions)
+[![Build Status](https://github.com/Defi-Oracle-Tooling/Electronic-MT103-Hard-Copy/workflows/build/badge.svg)](https://github.com/your-username/Electronic-MT103-Hard-Copy/actions)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=your-project-id&metric=alert_status)](https://sonarcloud.io/dashboard?id=your-project-id)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Electronic-MT103-Hard-Copy&metric=coverage)](https://sonarcloud.io/dashboard?id=Electronic-MT103-Hard-Copy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
