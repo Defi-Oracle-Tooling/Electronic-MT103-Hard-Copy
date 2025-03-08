@@ -14,6 +14,7 @@ venv/
 .env
 .coverage
 htmlcov/
+test.env
 
 # IDE
 .idea/

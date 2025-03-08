@@ -1,0 +1,43 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Run OSSAR scan
+        uses: github/ossar-action@v1
+        id: ossar
+
+      - name: Upload OSSAR results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.ossar.outputs.sarifFile }}
+
+      - name: Run npm audit
+        run: |
+          pnpm audit --audit-level=high
+          
+      - name: Run Dependency Review
+        uses: actions/dependency-review-action@v3
+        if: github.event_name == 'pull_request'

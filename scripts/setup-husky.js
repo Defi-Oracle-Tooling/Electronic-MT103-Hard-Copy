@@ -2,32 +2,53 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-console.log('🐶 Setting up Husky...');
-
-// Check if .husky directory exists
-const huskyDir = path.join(__dirname, '..', '.husky');
-if (!fs.existsSync(huskyDir)) {
-  console.log('Creating .husky directory');
-  fs.mkdirSync(huskyDir, { recursive: true });
+function ensureDirectoryExists(dir) {
+  if (!fs.existsSync(dir)) {
+    console.log(`Creating directory: ${dir}`);
+    fs.mkdirSync(dir, { recursive: true });
+  }
 }
 
+function createHook(name, content) {
+  const hookPath = path.join(huskyDir, name);
+  if (!fs.existsSync(hookPath)) {
+    console.log(`Creating ${name} hook`);
+    fs.writeFileSync(hookPath, content, { mode: 0o755 });
+  }
+}
+
+console.log('🐶 Setting up Husky...');
+
+const huskyDir = path.join(__dirname, '..', '.husky');
+ensureDirectoryExists(huskyDir);
+
 try {
-  // Initialize Husky with the new method
   execSync('npx husky init', { stdio: 'inherit' });
 
-  // Create a pre-commit hook if it doesn't exist
-  const preCommitPath = path.join(huskyDir, 'pre-commit');
-  if (!fs.existsSync(preCommitPath)) {
-    console.log('Creating pre-commit hook');
-    fs.writeFileSync(preCommitPath, `#!/usr/bin/env sh
+  // Create pre-commit hook
+  createHook('pre-commit', `#!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
 npm run lint && npm run test
-`, { mode: 0o755 });
-  }
+`);
+
+  // Create pre-push hook
+  createHook('pre-push', `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npm run test:coverage && npm audit
+`);
+
+  // Create commit-msg hook
+  createHook('commit-msg', `#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx --no -- commitlint --edit "\${1}"
+`);
 
   console.log('✅ Husky setup complete');
 } catch (error) {
-  console.error('❌ Error setting up Husky:', error);
+  console.error('❌ Error setting up Husky:', error.message);
+  console.error('Stack:', error.stack);
   process.exit(1);
 }

@@ -1,6 +1,7 @@
 const middleware = require('../../scripts/api/middleware');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+require('dotenv').config({ path: './test.env' });
 
 describe('Security Middleware', () => {
     const mockReq = {
@@ -27,7 +28,7 @@ describe('Security Middleware', () => {
     });
 
     test('should verify valid JWT token', () => {
-        const token = jwt.sign({ id: 'test' }, 'secret');
+        const token = jwt.sign({ id: 'test' }, process.env.TEST_JWT_SECRET);
         mockReq.headers.authorization = `Bearer ${token}`;
         
         middleware.authenticateJWT(mockReq, mockRes, mockNext);
@@ -36,7 +37,7 @@ describe('Security Middleware', () => {
 
     test('should validate message signatures', () => {
         const message = { test: 'data' };
-        const hmac = crypto.createHmac('sha256', 'secret');
+        const hmac = crypto.createHmac('sha256', process.env.TEST_HMAC_SECRET);
         hmac.update(JSON.stringify(message));
         const signature = hmac.digest('hex');
 
