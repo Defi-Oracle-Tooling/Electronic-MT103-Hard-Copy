@@ -1,0 +1,11 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .circle { animation: rotate 20s linear infinite; }
+  </style>
+  <circle class="circle" cx="100" cy="100" r="90" fill="none" stroke="#4A90E2" stroke-width="4"/>
+  <text x="100" y="110" text-anchor="middle" font-family="Arial" font-size="24" fill="#2C3E50">MT103</text>
+</svg>

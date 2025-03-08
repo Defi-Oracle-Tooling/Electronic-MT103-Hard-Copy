@@ -1,0 +1,72 @@
+# GitHub Copilot Agent Configuration for MT103 System
+
+version: 1.0
+
+agent:
+  name: MT103Assistant
+  description: An AI assistant specialized in SWIFT MT103 message processing and banking compliance
+  capabilities:
+    - message-formatting
+    - compliance-validation
+    - sanctions-screening
+    - anomaly-detection
+    - document-generation
+
+knowledge-base:
+  documentation:
+    - /docs
+    - /README.md
+  compliance-sources:
+    - /docs/compliance
+    - /docs/references
+
+integrations:
+  - type: slack
+    channel: mt103-alerts
+    events:
+      - compliance-violation
+      - suspicious-transaction
+      - system-error
+  - type: jira
+    project: MT103
+    events:
+      - create-issue-on-error
+      - update-issue-on-resolution
+
+workflows:
+  - id: enhance-mt103
+    description: Enhance a partial MT103 message using the agent
+    trigger: api
+    endpoint: /api/v1/mt103/ai/enhance
+    parameters:
+      - name: partialMessage
+        type: object
+        required: true
+      - name: instructions
+        type: string
+        required: true
+
+  - id: validate-compliance
+    description: Validate an MT103 message against compliance rules
+    trigger: api
+    endpoint: /api/v1/mt103/ai/validate-compliance
+    parameters:
+      - name: message
+        type: object
+        required: true
+
+  - id: detect-anomalies
+    description: Analyze transaction patterns for anomalies
+    trigger: scheduled
+    schedule: "0 */1 * * *" # Run hourly
+    action: analyze-recent-transactions
+
+security:
+  audit-logging: true
+  data-anonymization: true
+  requests-per-minute: 100
+  max-token-usage: 10000
+  allowed-environments:
+    - production
+    - staging
+    - development

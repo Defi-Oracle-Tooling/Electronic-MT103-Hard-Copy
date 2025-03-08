@@ -1,0 +1,67 @@
+name: Monthly System Check
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Run on the 1st of every month
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  system-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'pnpm'
+      
+      - name: Install PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          version: latest
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Make scripts executable
+        run: chmod +x ./scripts/*.sh
+      
+      - name: Run comprehensive tests
+        run: ./scripts/run-tests.sh ci
+      
+      - name: Run compliance checks
+        run: ./scripts/compliance-check.sh
+      
+      - name: Generate statistics
+        run: ./scripts/project-info.sh
+      
+      - name: Check dependency health
+        run: pnpm audit
+      
+      - name: Check for outdated dependencies
+        run: pnpm outdated --format json > dependency-report.json
+      
+      - name: Upload reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: monthly-reports
+          path: |
+            ./project_stats.md
+            ./compliance-reports/latest-compliance-report.md
+            ./dependency-report.json
+            ./test-reports/
+      
+      - name: Send notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "text": "Monthly System Check: ${{ job.status }}\nRepository: ${{ github.repository }}\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

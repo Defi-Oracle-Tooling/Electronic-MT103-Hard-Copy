@@ -1,12 +1,33 @@
-# Electronic MT103 Hard Copy System 🏦
+# Electronic MT103 Hard Copy System 🏦 
 
-[![Build Status](https://github.com/dFi0racle/Electronic-MT103-Hard-Copy/workflows/build/badge.svg)](https://github.com/your-username/Electronic-MT103-Hard-Copy/actions)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=your-project-id&metric=alert_status)](https://sonarcloud.io/dashboard?id=your-project-id)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Electronic-MT103-Hard-Copy&metric=coverage)](https://sonarcloud.io/dashboard?id=Electronic-MT103-Hard-Copy)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fyour-username%2FElectronic-MT103-Hard-Copy%2Fmain%2Finfra%2Fmain.json)
+<div align="center">
+  <img src="docs/assets/logo-animated.svg" width="200" alt="MT103 Logo">
+  
+  [English](README.md) | [Español](docs/es/README.md) | [中文](docs/zh-cn/README.md) | [日本語](docs/ja/README.md) | [العربية](docs/ar/README.md)
 
-A comprehensive toolkit for managing, validating, and processing MT103 SWIFT messages in compliance with international banking standards.
+  [![Build Status](https://github.com/dFi0racle/Electronic-MT103-Hard-Copy/workflows/build/badge.svg)](https://github.com/dFi0racle/Electronic-MT103-Hard-Copy/actions)
+  [![Localization Status](https://badges.crowdin.net/mt103-system/localized.svg)](https://crowdin.com/project/mt103-system)
+</div>
+
+<p align="center">
+  <img src="docs/assets/demo-animation.svg" width="600" alt="MT103 System Demo">
+</p>
+
+## 🌐 Global Support for SWIFT MT103 Processing
+
+An enterprise-grade system for managing MT103 messages across multiple languages and regulatory frameworks.
+
+```mermaid
+graph TD
+    A[Multi-Language Input] -->|Translation API| B[MT103 Processor]
+    B --> C{Validation}
+    C -->|Valid| D[Security Layer]
+    C -->|Invalid| E[Error Handler]
+    D --> F[SWIFT Network]
+    style A fill:#f9f,stroke:#333
+    style D fill:#bbf,stroke:#333
+    style F fill:#bfb,stroke:#333
+```
 
 ## 📋 Table of Contents
 
@@ -61,7 +82,7 @@ graph TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/username/Electronic-MT103-Hard-Copy.git
+git clone https://github.com/dFi0racle/Electronic-MT103-Hard-Copy.git
 
 # Install dependencies
 npm install

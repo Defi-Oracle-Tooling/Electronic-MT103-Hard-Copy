@@ -1,0 +1,28 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Install development tools
+RUN apk add --no-cache git curl bash openssh python3 make g++
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies with development packages
+RUN pnpm install
+
+# Copy the rest of the codebase
+COPY . .
+
+# Set up development environment
+ENV NODE_ENV=development
+ENV PATH /app/node_modules/.bin:$PATH
+
+# Expose development port
+EXPOSE 3000
+
+# Start development server with live reload
+CMD ["pnpm", "dev"]

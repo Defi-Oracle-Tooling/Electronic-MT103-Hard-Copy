@@ -96,14 +96,14 @@ export interface AnomalyConfig {
 }
 
 export interface AnomalyDetectionResult {
-  timestamp: Date;
+  id: string;
+  timestamp: number;
+  metric: string;
   value: number;
-  isAnomaly: boolean;
-  score: number;
-  bounds: {
-    upper: number;
-    lower: number;
-  };
+  expectedValue: number;
+  deviation: number;
+  severity: 'low' | 'medium' | 'high';
+  relatedMetrics: string[];
 }
 
 export interface MetricCorrelation {
@@ -113,6 +113,7 @@ export interface MetricCorrelation {
   timeOffset: number;
   confidence: number;
   relationship: 'direct' | 'inverse' | 'lagging' | 'leading';
+  correlationCoefficient: number;
 }
 
 export interface AdvancedChartOptions extends ChartOptions {
@@ -143,6 +144,10 @@ export interface MetricForecast {
     upper: number;
     lower: number;
   };
+  metric: string;
+  predictedValue: number;
+  upperBound: number;
+  lowerBound: number;
 }
 
 export interface HeatmapConfig {
@@ -213,6 +218,10 @@ export interface RootCauseAnalysis {
     }>;
   }>;
   recommendations: string[];
+  incidentId: string;
+  rootCause: string;
+  affectedMetrics: string[];
+  relatedIncidents: string[];
 }
 
 export interface PredictiveModel {
@@ -309,4 +318,62 @@ export interface ForecastVisualizationOptions {
     changePoints: boolean;
     anomalies: boolean;
   };
+}
+
+export interface HealthCheckResult {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  component: string;
+  details?: Record<string, any>;
+  lastCheck: Date;
+  responseTime: number;
+  circuitBreaker?: {
+    state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+    failureCount: number;
+    lastFailure: Date;
+    nextRetry: Date;
+  };
+  dependencies?: {
+    name: string;
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    responseTime: number;
+    lastCheck: Date;
+  }[];
+  customChecks?: {
+    name: string;
+    status: boolean;
+    message?: string;
+    timestamp: Date;
+  }[];
+}
+
+export interface ResourceUtilization {
+  cpu: {
+    usage: number;
+    cores: number;
+    load: number[];
+  };
+  memory: {
+    used: number;
+    free: number;
+    total: number;
+    swapUsage: number;
+  };
+  disk: {
+    used: number;
+    free: number;
+    total: number;
+    iops: number;
+  };
+}
+
+export interface ServiceStatus {
+  name: string;
+  status: 'up' | 'down' | 'degraded';
+  lastUpdated: Date;
+  dependencies: Array<{
+    name: string;
+    status: 'up' | 'down';
+    latency: number;
+  }>;
+  metrics: Record<string, number>;
 }

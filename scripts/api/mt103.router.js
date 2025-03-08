@@ -167,17 +167,25 @@ router.get('/performance',
 );
 
 router.get('/health',
-    (req, res) => {
+    async (req, res) => {
+        const healthChecker = require('../monitoring/health_checker');
+        const results = await healthChecker.runHealthCheck();
+        
+        const overallStatus = Object.values(results)
+            .every(r => r.status === 'healthy') ? 'healthy' : 'degraded';
+        
         const health = {
-            status: transactionMonitor.healthStatus.status,
+            status: overallStatus,
             timestamp: new Date().toISOString(),
-            services: {
-                database: 'up',
-                redis: redis.status === 'ready' ? 'up' : 'down',
-                encryption: 'up'
+            checks: results,
+            metrics: {
+                ...transactionMonitor.metrics,
+                averageProcessingTime: transactionMonitor.getAverageProcessingTime()
             }
         };
-        res.json(health);
+        
+        res.status(overallStatus === 'healthy' ? 200 : 503)
+           .json(health);
     }
 );
 
