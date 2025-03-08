@@ -18,6 +18,19 @@ runs:
         mkdir -p logs
         touch logs/workflow.log
       shell: bash
+
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: node_modules
+        key: npm-deps-${{ hashFiles('package-lock.json') }}
+        restore-keys: npm-deps-
+        
+    - name: Environment Check
+      run: |
+        node scripts/checkEnvironment.js
+        node scripts/validateConfigs.js
+      shell: bash
         
     - name: Build project
       run: npm run build || (echo "Build failed" >> logs/workflow.log && exit 1)
