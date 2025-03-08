@@ -6,6 +6,7 @@ const { authenticateJWT, validateRequest } = require('./middleware');
 const rateLimit = require('express-rate-limit');
 const messageStore = require('../message_store');
 const transactionMonitor = require('../monitoring/transaction_monitor');
+const { sendMetrics, sendAlert } = require('../monitoring/metrics');
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -151,7 +152,7 @@ router.get('/performance',
     apiLimiter,
     authenticateJWT,
     requireRole('ADMIN'),
-    (req, res) => {
+    async (req, res) => {
         const metrics = {
             current: {
                 avgProcessingTime: transactionMonitor.getAverageProcessingTime(),
@@ -162,6 +163,7 @@ router.get('/performance',
             trends: Array.from(transactionMonitor.minuteStats.values())
                 .slice(-60) // Last hour
         };
+        await sendMetrics('performance', metrics);
         res.json(metrics);
     }
 );

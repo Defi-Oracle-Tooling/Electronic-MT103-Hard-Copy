@@ -4,6 +4,7 @@ const logger = require('../mt103_logger');
 const fs = require('fs').promises;
 const path = require('path');
 const mlService = require('../services/ml.service');
+const { sendMetrics, sendAlert } = require('./metrics');
 
 class AutoScaler extends EventEmitter {
     constructor() {
@@ -32,6 +33,14 @@ class AutoScaler extends EventEmitter {
         this.setupMonitoring();
         this.mlPredictor = new mlService.LoadPredictor();
         this.lastPrediction = null;
+
+        this.thresholds = {
+            cpu: 80,
+            memory: 85,
+            responseTime: 500,
+            errorRate: 1
+        };
+        this.setupMetricsCollection();
     }
 
     async loadHistoricalData() {
@@ -238,47 +247,67 @@ class AutoScaler extends EventEmitter {
     }
 
     async triggerScaling(direction, reason) {
+        const previousState = await this.getCurrentState();
         this.lastScaleTime = Date.now();
-        this.scalingStatus = 'scaling';
-        
-        const event = {
-            direction,
-            reason,
-            timestamp: new Date().toISOString()
-        };
-        
-        this.emit('scaling', event);
-
-        logger.info('Auto-scaling triggered', event);
         
         try {
-            switch (this.scalingConfig.infrastructureType) {
-                case 'kubernetes':
-                    await this.scaleKubernetes(direction);
-                    break;
-                case 'docker':
-                    await this.scaleDockerSwarm(direction);
-                    break;
-                case 'aws':
-                    await this.scaleAWS(direction);
-                    break;
-                default:
-                    logger.warn('Unknown infrastructure type', { 
-                        type: this.scalingConfig.infrastructureType 
-                    });
-            }
-            
-            this.scalingStatus = 'stable';
-            this.emit('scaled', { ...event, success: true });
-        } catch (error) {
-            logger.error('Scaling operation failed', { 
-                direction, 
-                reason, 
-                error: error.message 
+            await this.executeScaling(direction, reason);
+            await sendMetrics('scaling_operation', {
+                direction,
+                reason,
+                success: true
             });
-            
-            this.scalingStatus = 'error';
-            this.emit('scaled', { ...event, success: false, error: error.message });
+        } catch (error) {
+            logger.error('Scaling failed, initiating rollback', { error });
+            try {
+                await this.rollback(previousState);
+            } catch (rollbackError) {
+                logger.error('Rollback failed', { rollbackError });
+                await sendAlert('CRITICAL: Scaling rollback failed');
+            }
+            throw error;
+        }
+    }
+
+    async getCurrentState() {
+        return {
+            replicas: await this.getCurrentReplicas(),
+            timestamp: Date.now(),
+            metrics: await this.collectMetrics()
+        };
+    }
+
+    async rollback(previousState) {
+        logger.info('Rolling back to previous state', { previousState });
+        switch (this.scalingConfig.infrastructureType) {
+            case 'kubernetes':
+                await this.rollbackKubernetes(previousState.replicas);
+                break;
+            // ...existing code...
+        }
+    }
+    
+    async sendMetrics(data) {
+        try {
+            await fetch(config.monitoring.endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } catch (error) {
+            logger.error('Failed to send metrics', { error });
+        }
+    }
+
+    async sendAlert(message) {
+        try {
+            await fetch(config.monitoring.alertWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+        } catch (error) {
+            logger.error('Failed to send alert', { error });
         }
     }
 
@@ -337,6 +366,26 @@ class AutoScaler extends EventEmitter {
         
         // Add automated incident response
         this.setupAutomatedResponses();
+    }
+
+    setupMetricsCollection() {
+        setInterval(() => {
+            this.collectMetrics();
+        }, 60000); // Every minute
+    }
+
+    async collectMetrics() {
+        const metrics = await this.getSystemMetrics();
+        this.metricsHistory.push({
+            timestamp: Date.now(),
+            ...metrics
+        });
+
+        if (this.metricsHistory.length > this.historyLimit) {
+            this.metricsHistory.shift();
+        }
+
+        this.evaluateScaling(metrics);
     }
 }
 

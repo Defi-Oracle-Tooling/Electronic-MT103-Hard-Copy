@@ -37,6 +37,24 @@ const updateBatches = [
     updates: [
       "@opentelemetry/sdk-node@0.57.2"
     ]
+  },
+  // Batch 5: React ecosystem
+  {
+    name: "React and related packages",
+    updates: [
+      "react@18.2.0",
+      "react-dom@18.2.0",
+      "react-router-dom@6.22.0"
+    ]
+  },
+  // Batch 6: Node.js core packages
+  {
+    name: "Node.js core packages",
+    updates: [
+      "express@4.18.2",
+      "cors@2.8.5",
+      "compression@1.7.4"
+    ]
   }
 ];
 

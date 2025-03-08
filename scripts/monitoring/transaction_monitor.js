@@ -1,4 +1,5 @@
 const EventEmitter = require('events');
+const { sendMetrics, sendAlert } = require('./metrics');
 
 class TransactionMonitor extends EventEmitter {
     constructor() {
@@ -63,6 +64,7 @@ class TransactionMonitor extends EventEmitter {
         };
         this.alerts.push(alert);
         this.emit('alert', alert);
+        sendAlert(message);
     }
 
     getErrorRate() {
