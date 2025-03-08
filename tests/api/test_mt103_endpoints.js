@@ -1,9 +1,14 @@
+require('dotenv').config({ path: './test.env' });
+
 const request = require('supertest');
 const app = require('../../scripts/api/server');
 const jwt = require('jsonwebtoken');
 
 describe('MT103 API Endpoints', () => {
-    const testToken = jwt.sign({ id: 'testUser', roles: ['ADMIN'] }, process.env.JWT_SECRET || 'test-secret');
+    const testToken = jwt.sign(
+        { id: 'testUser', roles: ['ADMIN'] }, 
+        process.env.TEST_JWT_SECRET
+    );
 
     test('should get monitoring metrics', async () => {
         const response = await request(app)

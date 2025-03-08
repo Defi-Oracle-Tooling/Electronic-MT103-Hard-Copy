@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mt103-app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=mongo
+      - DB_PORT=27017
+      - DB_NAME=mt103
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=dev-secret-key-do-not-use-in-production
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - mt103-network
+    command: pnpm dev
+
+  mongo:
+    image: mongo:6.0
+    container_name: mt103-mongo
+    volumes:
+      - mongo_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mt103user
+      - MONGO_INITDB_ROOT_PASSWORD=mt103password
+      - MONGO_INITDB_DATABASE=mt103
+    networks:
+      - mt103-network
+
+  redis:
+    image: redis:7.2
+    container_name: mt103-redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - mt103-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mt103-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=mt103user
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=mt103password
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - mongo
+    networks:
+      - mt103-network
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mt103-mailhog
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI
+    networks:
+      - mt103-network
+
+  mock-swift:
+    build:
+      context: ./mock-services/swift
+      dockerfile: Dockerfile
+    container_name: mt103-mock-swift
+    ports:
+      - "8080:8080"
+    environment:
+      - LATENCY_MS=100
+      - ERROR_RATE=0.05
+    networks:
+      - mt103-network
+
+networks:
+  mt103-network:
+    driver: bridge
+
+volumes:
+  node_modules:
+  mongo_data:
+  redis_data:

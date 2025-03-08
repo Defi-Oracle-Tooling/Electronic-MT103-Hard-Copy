@@ -1,0 +1,38 @@
+groups:
+  - name: translation_alerts
+    rules:
+      - alert: HighTranslationLatency
+        expr: translation_latency_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High translation latency detected
+          
+      - alert: LowTranslationQuality
+        expr: translation_quality_score < 0.9
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Translation quality below threshold
+
+  - name: compliance_alerts
+    rules:
+      - alert: ComplianceCheckFailure
+        expr: compliance_check_failures > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Compliance check failure detected
+
+  - name: performance_alerts
+    rules:
+      - alert: HighDatabaseLatency
+        expr: database_query_seconds > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Database performance degradation

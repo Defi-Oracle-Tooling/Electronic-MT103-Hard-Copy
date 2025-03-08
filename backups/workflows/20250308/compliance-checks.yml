@@ -1,0 +1,47 @@
+name: Compliance Checks
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight
+  workflow_dispatch:
+
+jobs:
+  compliance-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Security Scan
+      uses: security-scanner/action@v2
+      with:
+        fail-on: critical
+        
+    - name: Check Compliance Rules
+      run: |
+        npm run compliance:check
+        
+    - name: Generate Compliance Report
+      run: |
+        npm run compliance:report
+        
+    - name: Upload Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: compliance-report
+        path: reports/compliance/
+
+    - name: Alert on Violations
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const violations = require('./reports/compliance/violations.json');
+          const body = violations.map(v => `- ${v.rule}: ${v.description}`).join('\n');
+          await github.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.name,
+            title: '⚠️ Compliance Violations Detected',
+            body: body,
+            labels: ['compliance', 'priority']
+          });

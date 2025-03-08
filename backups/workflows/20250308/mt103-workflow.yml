@@ -1,0 +1,87 @@
+name: MT103 Processing Workflow
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  process-mt103:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run common setup
+        uses: ./.github/actions/common-actions
+        id: setup
+      
+      - name: Verify file structure
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "dist directory missing"
+            exit 1
+          fi
+          if [ ! -d "output" ]; then
+            mkdir output
+          fi
+
+      - name: Pre-flight Checks
+        run: |
+          node scripts/monitoring/health_check.js
+          node scripts/performance/bottleneck_detector.js --precheck
+
+      - name: Generate PDF
+        id: pdf
+        continue-on-error: true
+        run: |
+          start_time=$(($(date +%s%N)/1000000))
+          node dist/generatePDF.js
+          end_time=$(($(date +%s%N)/1000000))
+          echo "PDF_GEN_TIME=$((end_time-start_time))" >> $GITHUB_ENV
+          
+      - name: Send Email
+        if: steps.pdf.outcome == 'success'
+        id: email
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        run: node dist/sendEmail.js
+
+      - name: Upload PDF artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: mt103-pdf-${{ github.run_id }}
+          path: |
+            output/*.pdf
+            logs/*.log
+          retention-days: 5
+
+      - name: Report Status
+        if: always()
+        run: |
+          if [ "${{ steps.pdf.outcome }}" == "failure" ]; then
+            echo "PDF generation failed"
+            exit 1
+          fi
+          if [ "${{ steps.email.outcome }}" == "failure" ]; then
+            echo "Email sending failed"
+            exit 1
+          fi
+
+      - name: Collect Metrics
+        if: always()
+        run: |
+          node scripts/monitoring/collect_metrics.js \
+            --processing-time=${{ env.PDF_GEN_TIME }} \
+            --status=${{ steps.pdf.outcome }}
+
+      - name: Cleanup old artifacts
+        if: always()
+        run: |
+          find output -type f -mtime +7 -name "*.pdf" -delete
+          find logs -type f -mtime +7 -name "*.log" -delete
