@@ -125,7 +125,6 @@ jobs:
           step: start
           token: ${{ secrets.GITHUB_TOKEN }}
           env: production
-          no_override: true
       
       - name: Azure login
         uses: azure/login@v1
