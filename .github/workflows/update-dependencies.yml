@@ -1,0 +1,43 @@
+name: Update Dependencies
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.x'
+  PNPM_VERSION: '8.x'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/common-actions
+      
+      - name: Update Dependencies
+        run: |
+          pnpm update
+          pnpm audit fix
+          
+      - name: Validate MT103 compatibility
+        run: |
+          pnpm test:mt103
+          pnpm validate:swift
+          
+      - name: Security audit
+        run: |
+          pnpm audit --audit-level=high
+          node scripts/security/check-dependencies.js
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: 'chore: weekly dependency updates'
+          branch: 'deps/weekly-update'
+          commit-message: 'chore: update dependencies'
+          body: |
+            Automated dependency updates
+            - Updates all dependencies to their latest compatible versions
+            - Runs security audit fixes
