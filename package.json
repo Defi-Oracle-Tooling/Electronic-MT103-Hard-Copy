@@ -27,7 +27,7 @@
     "@opentelemetry/host-metrics": "^0.35.5",
     "@opentelemetry/instrumentation": "^0.57.2",
     "@opentelemetry/instrumentation-express": "^0.47.1",
-    "@opentelemetry/instrumentation-http": "^0.47.0",
+    "@opentelemetry/instrumentation-http": "^0.57.2",
     "@opentelemetry/instrumentation-pg": "^0.47.1",
     "@opentelemetry/instrumentation-redis": "^0.46.1",
     "@opentelemetry/propagator-b3": "^1.30.1",
