@@ -5,33 +5,58 @@ runs:
   using: "composite"
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18.x'
+        cache: 'pnpm'
+
+    - name: Install PNPM
+      uses: pnpm/action-setup@v3
+      with:
+        version: '8.x'
+        
+    - name: Setup error monitoring
+      uses: microsoft/azure-monitor-action@v1
+      with:
+        connection-string: ${{ secrets.APPLICATION_INSIGHTS_CONNECTION_STRING }}
         
     - name: Install dependencies
-      run: npm install
+      run: |
+        pnpm install --frozen-lockfile || (echo "::error::Failed to install dependencies" && exit 1)
       shell: bash
       
-    - name: Setup error logging
+    - name: Environment validation
       run: |
-        mkdir -p logs
-        touch logs/workflow.log
-      shell: bash
-
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: node_modules
-        key: npm-deps-${{ hashFiles('package-lock.json') }}
-        restore-keys: npm-deps-
-        
-    - name: Environment Check
-      run: |
-        node scripts/checkEnvironment.js
-        node scripts/validateConfigs.js
+        node scripts/checkEnvironment.js || (echo "::error::Environment validation failed" && exit 1)
+        node scripts/validateConfigs.js || (echo "::error::Config validation failed" && exit 1)
       shell: bash
         
     - name: Build project
-      run: npm run build || (echo "Build failed" >> logs/workflow.log && exit 1)
+      run: |
+        pnpm build || (echo "::error::Build failed" && exit 1)
       shell: bash
+
+    - name: Verify MT103 configuration
+      run: |
+        node scripts/validate_mt103.js --check-config || (echo "::error::MT103 validation failed" && exit 1)
+      shell: bash
+        
+    - name: Setup monitoring
+      run: |
+        mkdir -p logs/metrics
+        node scripts/monitoring/setup.js || (echo "::error::Monitoring setup failed" && exit 1)
+      shell: bash
+
+    - name: Setup Azure tools
+      if: ${{ contains(github.workflow, 'Deploy') }}
+      shell: bash
+      run: |
+        az config set extension.use_dynamic_install=yes_without_prompt
+        az extension add --name application-insights
+        az extension add --name webapp
+
+    - name: Verify deployment readiness
+      if: ${{ contains(github.workflow, 'Deploy') }}
+      shell: bash
+      run: |
+        ./scripts/verify-deployment.sh || (echo "::error::Deployment verification failed" && exit 1)

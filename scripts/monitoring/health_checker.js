@@ -1,5 +1,6 @@
 const { trace } = require('@opentelemetry/api');
 const CircuitBreaker = require('./circuit_breaker');
+const { sendMetrics } = require('./metrics');
 
 class HealthChecker {
     constructor() {
@@ -55,23 +56,9 @@ class HealthChecker {
     }
 
     async runHealthCheck() {
-        const results = {};
-        const tracer = trace.getTracer('health');
-        const span = tracer.startSpan('system.health.check');
-
-        try {
-            for (const [name, check] of this.checks) {
-                const breaker = this.circuitBreakers.get(name);
-                try {
-                    results[name] = await breaker.execute(check);
-                } catch (error) {
-                    results[name] = { status: 'unhealthy', error: error.message };
-                }
-            }
-            return results;
-        } finally {
-            span.end();
-        }
+        const results = await Promise.all(this.checks.map(check => check()));
+        await sendMetrics('health', { results });
+        return results;
     }
 }
 

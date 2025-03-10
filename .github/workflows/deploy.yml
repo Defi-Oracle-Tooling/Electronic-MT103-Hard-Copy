@@ -1,0 +1,244 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly Sunday at 2 AM
+
+env:
+  NODE_VERSION: '18.x'
+  PNPM_VERSION: '8.x'
+  AZURE_WEBAPP_NAME: mt103-production
+  AZURE_RG_NAME: mt103-production-rg
+  AZURE_LOCATION: westeurope
+  SECURITY_SCAN_LEVEL: high
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+  deployments: write
+  issues: write
+
+jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      infra_changed: ${{ steps.check_changes.outputs.infra_changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/common-actions
+      
+      - name: Deploy infrastructure
+        uses: azure/arm-deploy@v1
+        with:
+          resourceGroupName: ${{ env.AZURE_RG_NAME }}
+          template: ./infra/main.bicep
+          parameters: >
+            location=${{ env.AZURE_LOCATION }}
+            environment=production
+
+  security:
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: ./.github/actions/common-actions
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript, typescript
+          queries: security-extended, security-and-quality
+          
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+          
+      - name: OSSAR scan
+        uses: github/ossar-action@v1
+        
+      - name: Dependency review
+        uses: actions/dependency-review-action@v3
+        
+      - name: Secret detection
+        uses: gitleaks/gitleaks-action@v2
+        
+  validate:
+    needs: security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/common-actions
+      
+      - name: Run tests
+        run: pnpm test
+        continue-on-error: false
+      
+      - name: SonarQube analysis
+        uses: SonarSource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=mt103
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+      - name: Performance checks
+        run: |
+          pnpm lighthouse:ci
+          pnpm run metrics:validate
+        continue-on-error: true
+
+  deploy:
+    needs: [security, validate]
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+      app_url: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    environment:
+      name: Production  # Changed from production to Production
+      url: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/common-actions
+      
+      - name: Check environment protection
+        run: |
+          if [[ "${{ github.ref }}" != "refs/heads/main" && "${{ github.event_name }}" != "workflow_dispatch" ]]; then
+            echo "::error::Deployment to production is only allowed from main branch or manual dispatch"
+            exit 1
+          fi
+
+      - name: Start deployment
+        uses: bobheadxi/deployments@v1
+        id: deployment
+        with:
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
+      
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: .
+          
+      - name: Configure app settings
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az webapp config appsettings set \
+              --name ${{ env.AZURE_WEBAPP_NAME }} \
+              --resource-group ${{ env.AZURE_RG_NAME }} \
+              --settings NODE_ENV=production \
+                         WEBSITE_NODE_DEFAULT_VERSION=${{ env.NODE_VERSION }}
+          
+      - name: Wait for deployment
+        run: sleep 30 # Allow app to start
+          
+      - name: Health check
+        run: |
+          max_retries=5
+          counter=0
+          until [ $counter -ge $max_retries ]
+          do
+            if curl -sSf https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health; then
+              echo "Application is healthy"
+              exit 0
+            fi
+            counter=$((counter+1))
+            echo "Attempt $counter failed. Waiting..."
+            sleep 30
+          done
+          echo "Health check failed after $max_retries attempts"
+          exit 1
+
+      - name: Check deployment status
+        run: |
+          az webapp show \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RG_NAME }} \
+            --query state -o tsv
+          
+      - name: Get deployment URL
+        id: get_url
+        run: |
+          echo "url=https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_OUTPUT
+          
+      - name: Update deployment status
+        if: always()
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env_url: ${{ steps.get_url.outputs.url }}
+
+  monitoring:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Monitor health
+        run: |
+          node scripts/monitoring/health_check.js
+          node scripts/performance/bottleneck_detector.js --precheck
+
+      - name: Collect metrics
+        run: |
+          node scripts/monitoring/collect_metrics.js \
+            --deployment-id=${{ github.run_id }} \
+            --status=${{ job.status }}
+
+      - name: Verify compliance
+        run: node scripts/compliance-check.sh
+
+  notify:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create GitHub Issue on Failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Deployment Failed',
+              body: `Deployment failed for commit ${context.sha}.\nSee: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+            
+      - name: Send notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Deployment ${{ needs.deploy.outputs.deployment_id }} completed: ${{ job.status }}",
+              "attachments": [{
+                "fields": [
+                  {"title": "Status", "value": "${{ job.status }}", "short": true},
+                  {"title": "Environment", "value": "production", "short": true}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
