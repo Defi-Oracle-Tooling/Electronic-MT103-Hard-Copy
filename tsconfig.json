@@ -33,7 +33,9 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
-    "checkJs": true
+    "checkJs": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
   "include": [
     "src/**/*.ts",
